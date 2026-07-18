@@ -1,6 +1,10 @@
 package isolate
 
-import "syscall"
+import (
+	"os"
+	"os/exec"
+	"syscall"
+)
 
 // NamespaceFlags 声明本次 clone 要打开哪些 namespace。三个字段分别对应 m01 三个实现 phase：
 // UTS → P2（hostname 隔离），PID → P3（PID 隔离），NS → P4（挂载隔离 + remount /proc）。
@@ -27,7 +31,18 @@ func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
 
 // EnterAndExec 是子进程刚进入新 namespace 后要做的全部事情：先按 flags 完成必要准备，
 // 再把当前进程换成 target 这个目标命令。
-func EnterAndExec(f NamespaceFlags, target []string) error
+func EnterAndExec(f NamespaceFlags, target []string) error {
+	if f.UTS {
+		if err := syscall.Sethostname([]byte("mini-docker")); err != nil {
+			return err
+		}
+	}
+	path, err := exec.LookPath(target[0])
+	if err != nil {
+		return err
+	}
+	return syscall.Exec(path, target, os.Environ())
+}
 
 // 你来实现（P2）：
 // 1. 若 f.UTS 为 true，调用 syscall.Sethostname 把 hostname 设为 "mini-docker"
