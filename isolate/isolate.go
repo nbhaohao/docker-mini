@@ -12,7 +12,13 @@ type NamespaceFlags struct {
 
 // SysProcAttrFor 把 NamespaceFlags 换算成 exec.Cmd 需要的 SysProcAttr。
 // Cloneflags 决定 clone(2) 给即将创建的子进程新开哪些 namespace。
-func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr
+func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
+	var flags uintptr
+	if f.UTS {
+		flags |= syscall.CLONE_NEWUTS
+	}
+	return &syscall.SysProcAttr{Cloneflags: flags}
+}
 
 // 你来实现（P2）：
 // 1. 声明一个 uintptr 变量 flags，初值 0
