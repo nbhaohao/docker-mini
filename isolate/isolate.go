@@ -21,6 +21,9 @@ func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
 	if f.UTS {
 		flags |= syscall.CLONE_NEWUTS
 	}
+	if f.PID {
+		flags |= syscall.CLONE_NEWPID
+	}
 	return &syscall.SysProcAttr{Cloneflags: flags}
 }
 
