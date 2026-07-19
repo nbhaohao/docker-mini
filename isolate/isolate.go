@@ -45,6 +45,11 @@ func EnterAndExec(f NamespaceFlags, target []string) error {
 			return err
 		}
 	}
+	if f.PID && f.NS {
+		if err := syscall.Mount("proc", "/proc", "proc", 0, ""); err != nil {
+			return err
+		}
+	}
 	path, err := exec.LookPath(target[0])
 	if err != nil {
 		return err
