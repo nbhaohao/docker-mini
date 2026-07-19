@@ -24,7 +24,12 @@ func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
 	if f.PID {
 		flags |= syscall.CLONE_NEWPID
 	}
-	return &syscall.SysProcAttr{Cloneflags: flags}
+	attr := &syscall.SysProcAttr{Cloneflags: flags}
+	if f.NS {
+		attr.Cloneflags |= syscall.CLONE_NEWNS
+		attr.Unshareflags = syscall.CLONE_NEWNS
+	}
+	return attr
 }
 
 // 你来实现（P2）：
