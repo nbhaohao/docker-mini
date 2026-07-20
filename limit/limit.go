@@ -1,5 +1,10 @@
 package limit
 
+import (
+	"os"
+	"path/filepath"
+)
+
 // cgroupRoot 是 mini-docker 所有资源组的父目录。它自己也是一个 cgroup（挂在 /sys/fs/cgroup 这棵统一层级下），
 // 要把 memory/cpu/pids 控制器"下放"给自己的子目录，必须先在这个父目录的 cgroup.subtree_control 里显式启用。
 const cgroupRoot = "/sys/fs/cgroup/mini-docker"
@@ -16,7 +21,20 @@ type Limits struct {
 }
 
 // Setup 在 cgroupRoot 下创建（若不存在）名为 name 的资源组目录，按 l 写入对应的 cgroup v2 接口文件，返回这个组的路径。
-func Setup(name string, l Limits) (path string, err error)
+func Setup(name string, l Limits) (path string, err error) {
+	if err := os.MkdirAll(cgroupRoot, 0755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(filepath.Join(cgroupRoot, "cgroup.subtree_control"), []byte("+memory +cpu +pids"), 0644); err != nil {
+		return "", err
+	}
+
+	path = filepath.Join(cgroupRoot, name)
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return "", err
+	}
+	return path, nil
+}
 
 // 你来实现（P2 起，逐 phase 往这个函数里加字段分支）：
 // 1. 若 cgroupRoot 目录不存在，os.MkdirAll 创建它（0755）
