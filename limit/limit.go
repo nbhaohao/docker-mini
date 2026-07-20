@@ -3,6 +3,7 @@ package limit
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 // cgroupRoot 是 mini-docker 所有资源组的父目录。它自己也是一个 cgroup（挂在 /sys/fs/cgroup 这棵统一层级下），
@@ -33,6 +34,14 @@ func Setup(name string, l Limits) (path string, err error) {
 	if err := os.MkdirAll(path, 0755); err != nil {
 		return "", err
 	}
+	if l.MemoryBytes > 0 {
+		if err := os.WriteFile(filepath.Join(path, "memory.max"), []byte(strconv.FormatInt(l.MemoryBytes, 10)), 0644); err != nil {
+			return "", err
+		}
+		if err := os.WriteFile(filepath.Join(path, "memory.swap.max"), []byte("0"), 0644); err != nil {
+			return "", err
+		}
+	}
 	return path, nil
 }
 
@@ -49,7 +58,9 @@ func Setup(name string, l Limits) (path string, err error) {
 // 7. 返回 path, nil
 
 // Join 把 pid 这个进程写进 path 对应资源组的 cgroup.procs，使它以及它之后 fork 出的子进程都受这份限额约束。
-func Join(path string, pid int) error
+func Join(path string, pid int) error {
+	return os.WriteFile(filepath.Join(path, "cgroup.procs"), []byte(strconv.Itoa(pid)), 0644)
+}
 
 // 你来实现（P2）：
 // 把 strconv.Itoa(pid) 写进 filepath.Join(path, "cgroup.procs")（os.WriteFile）
