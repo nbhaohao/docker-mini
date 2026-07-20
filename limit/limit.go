@@ -42,6 +42,12 @@ func Setup(name string, l Limits) (path string, err error) {
 			return "", err
 		}
 	}
+	if l.CPUQuotaUS > 0 {
+		cpuMax := strconv.FormatInt(l.CPUQuotaUS, 10) + " " + strconv.FormatInt(cpuPeriodUS, 10)
+		if err := os.WriteFile(filepath.Join(path, "cpu.max"), []byte(cpuMax), 0644); err != nil {
+			return "", err
+		}
+	}
 	return path, nil
 }
 
