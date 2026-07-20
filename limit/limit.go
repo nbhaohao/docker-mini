@@ -48,6 +48,11 @@ func Setup(name string, l Limits) (path string, err error) {
 			return "", err
 		}
 	}
+	if l.PIDsMax > 0 {
+		if err := os.WriteFile(filepath.Join(path, "pids.max"), []byte(strconv.FormatInt(l.PIDsMax, 10)), 0644); err != nil {
+			return "", err
+		}
+	}
 	return path, nil
 }
 
