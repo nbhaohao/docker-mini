@@ -2,6 +2,8 @@ package image
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"syscall"
 )
 
@@ -21,7 +23,14 @@ func MountOverlay(lower, upper, work, merged string) error {
 //
 // P2 完成前这个函数只是占位：先跑通 MountOverlay，再来替换下面这行 panic。
 func PivotInto(newRoot string) error {
-	panic("你来实现（P3）：把这行 panic 换成真正的 PivotInto 实现，见下方步骤注释")
+	if err := syscall.Mount(newRoot, newRoot, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+		return err
+	}
+	oldRoot := filepath.Join(newRoot, ".old_root")
+	if err := os.MkdirAll(oldRoot, 0700); err != nil {
+		return err
+	}
+	return syscall.PivotRoot(newRoot, oldRoot)
 }
 
 // 你来实现（P3，替换上面那行 panic）：
