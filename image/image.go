@@ -1,8 +1,16 @@
 package image
 
+import (
+	"fmt"
+	"syscall"
+)
+
 // MountOverlay 把 lower(只读镜像层) + upper(容器可写层) 联合挂载到 merged 这个目录上，
 // work 是 overlayfs 要求的暂存目录（内核用它做原子重命名，不能被外部直接读写）。
-func MountOverlay(lower, upper, work, merged string) error
+func MountOverlay(lower, upper, work, merged string) error {
+	data := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
+	return syscall.Mount("overlay", merged, "overlay", 0, data)
+}
 
 // 你来实现（P2）：
 // 把 data 拼成 "lowerdir=<lower>,upperdir=<upper>,workdir=<work>" 这个字符串，
