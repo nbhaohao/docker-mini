@@ -29,6 +29,7 @@ func TestHelperProcess(t *testing.T) {
 		UTS: os.Getenv("HELPER_UTS") == "1",
 		PID: os.Getenv("HELPER_PID") == "1",
 		NS:  os.Getenv("HELPER_NS") == "1",
+		Net: os.Getenv("HELPER_NET") == "1",
 	}
 	dashdash := -1
 	for i, a := range os.Args {
@@ -60,6 +61,7 @@ func runHelper(t *testing.T, f NamespaceFlags, target []string) (string, error) 
 		"HELPER_UTS="+boolFlag(f.UTS),
 		"HELPER_PID="+boolFlag(f.PID),
 		"HELPER_NS="+boolFlag(f.NS),
+		"HELPER_NET="+boolFlag(f.Net),
 	)
 	cmd.SysProcAttr = SysProcAttrFor(f)
 	out, err := cmd.CombinedOutput()
@@ -113,6 +115,26 @@ func TestM01P3ProcStillLeaksHostWithoutRemount(t *testing.T) {
 	// 未 remount /proc 时 ps 读到的是宿主整份进程表：数据行(去掉表头) > 3 才说明确实没被隔离。
 	if len(lines) <= 3 {
 		t.Fatalf("ps -e output too short (%d lines) to prove host /proc leaked:\n%s", len(lines), out)
+	}
+}
+
+func TestM04P1NetNamespaceIsolated(t *testing.T) {
+	requireRoot(t)
+	out, err := runHelper(t, NamespaceFlags{Net: true}, []string{"ip", "-o", "link", "show"})
+	if err != nil {
+		t.Fatalf("helper failed: %v\noutput: %s", err, out)
+	}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	// 新开的 network namespace 里应该只有一张网卡：回环 lo。看到更多，说明 CLONE_NEWNET
+	// 没生效——子进程还在共用宿主那份网卡列表。
+	if len(lines) != 1 {
+		t.Fatalf("net namespace 应该只看到 lo 一张网卡，实际看到 %d 张:\n%s", len(lines), out)
+	}
+	if !strings.Contains(lines[0], "lo:") {
+		t.Fatalf("唯一的网卡应该是 lo，实际是: %s", lines[0])
+	}
+	if !strings.Contains(lines[0], "UP") {
+		t.Fatalf("lo 应该被 EnterAndExec 显式拉起来（新 namespace 里默认是 DOWN 的），实际: %s", lines[0])
 	}
 }
 

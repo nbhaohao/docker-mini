@@ -6,12 +6,14 @@ import (
 	"syscall"
 )
 
-// NamespaceFlags 声明本次 clone 要打开哪些 namespace。三个字段分别对应 m01 三个实现 phase：
-// UTS → P2（hostname 隔离），PID → P3（PID 隔离），NS → P4（挂载隔离 + remount /proc）。
+// NamespaceFlags 声明本次 clone 要打开哪些 namespace。四个字段分别对应四个实现 phase：
+// UTS → m01 P2（hostname 隔离），PID → m01 P3（PID 隔离），NS → m01 P4（挂载隔离 + remount /proc），
+// Net → m04 P1（网络栈隔离：新进程只看得到自己的一份网卡/路由/端口，而不是宿主那份）。
 type NamespaceFlags struct {
 	UTS bool
 	PID bool
 	NS  bool
+	Net bool
 }
 
 // SysProcAttrFor 把 NamespaceFlags 换算成 exec.Cmd 需要的 SysProcAttr。
@@ -32,10 +34,9 @@ func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
 	return attr
 }
 
-// 你来实现（P2）：
-// 1. 声明一个 uintptr 变量 flags，初值 0
-// 2. 若 f.UTS 为 true，flags |= syscall.CLONE_NEWUTS
-// 3. 用 flags 构造 &syscall.SysProcAttr{Cloneflags: flags} 并返回
+// 你来实现（m04 P1）：
+// 1. 若 f.Net 为 true，flags |= syscall.CLONE_NEWNET
+// 2. 加在 UTS/PID 判断之后、attr 构造之前即可，和 NS 那段不一样：Net 不需要额外的 Unshareflags
 
 // EnterAndExec 是子进程刚进入新 namespace 后要做的全部事情：先按 flags 完成必要准备，
 // 再把当前进程换成 target 这个目标命令。
@@ -57,9 +58,7 @@ func EnterAndExec(f NamespaceFlags, target []string) error {
 	return syscall.Exec(path, target, os.Environ())
 }
 
-// 你来实现（P2）：
-// 1. 若 f.UTS 为 true，调用 syscall.Sethostname 把 hostname 设为 "mini-docker"
-// 2. 用 exec.LookPath(target[0]) 找到目标命令的可执行文件完整路径
-// 3. 用 syscall.Exec(path, target, os.Environ()) 把当前进程「换像」成目标命令，
-//    而不是用 exec.Command(...).Run() 再 fork 一个新进程——原因见 P1 热身。
-//    返回 syscall.Exec 的 error（正常情况下这行代码不会返回，因为进程已经被换像）。
+// 你来实现（m04 P1）：
+// 1. 若 f.Net 为 true，新 network namespace 里连回环网卡默认都是 DOWN 的，得手动拉起来，
+//    否则连 127.0.0.1 都不通。用 exec.Command("ip", "link", "set", "lo", "up").Run()。
+// 2. 放在 exec.LookPath 之前执行（这条命令跑完就结束了，不影响后面的换像）。
