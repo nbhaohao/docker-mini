@@ -56,7 +56,18 @@ func PivotInto(newRoot string) error {
 //
 // P3 完成前这个函数只是占位：先跑通 PivotInto，再来替换下面这行 panic。
 func PrepareContainerRoot(runtimeDir, lower string) (merged string, err error) {
-	panic("你来实现（P4）：把这行 panic 换成真正的 PrepareContainerRoot 实现，见下方步骤注释")
+	upper := filepath.Join(runtimeDir, "upper")
+	work := filepath.Join(runtimeDir, "work")
+	merged = filepath.Join(runtimeDir, "merged")
+	for _, dir := range []string{upper, work, merged} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return "", err
+		}
+	}
+	if err := MountOverlay(lower, upper, work, merged); err != nil {
+		return "", err
+	}
+	return merged, nil
 }
 
 // 你来实现（P4，替换上面那行 panic）：
