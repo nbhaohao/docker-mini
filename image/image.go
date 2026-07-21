@@ -30,7 +30,16 @@ func PivotInto(newRoot string) error {
 	if err := os.MkdirAll(oldRoot, 0700); err != nil {
 		return err
 	}
-	return syscall.PivotRoot(newRoot, oldRoot)
+	if err := syscall.PivotRoot(newRoot, oldRoot); err != nil {
+		return err
+	}
+	if err := os.Chdir("/"); err != nil {
+		return err
+	}
+	if err := syscall.Unmount("/.old_root", syscall.MNT_DETACH); err != nil {
+		return err
+	}
+	return os.RemoveAll("/.old_root")
 }
 
 // 你来实现（P3，替换上面那行 panic）：
