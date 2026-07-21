@@ -89,6 +89,30 @@ func TestM03P2OverlayWritesGoToUpperOnly(t *testing.T) {
 	if err != nil || string(got) != "hello-from-lower" {
 		t.Fatalf("merged should still read through to lower's marker.txt, got %q err=%v", got, err)
 	}
+
+	// 只改 lower 已有文件中间的几个字节：overlayfs 必须先把完整文件 copy-up 到 upper，
+	// 再在 upper 副本上落修改；lower 镜像层始终保持只读不变。
+	mergedMarker := filepath.Join(merged, "marker.txt")
+	f, err := os.OpenFile(mergedMarker, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("open lower-backed file through merged: %v", err)
+	}
+	if _, err := f.WriteAt([]byte("UPPER"), 6); err != nil {
+		_ = f.Close()
+		t.Fatalf("partial write through merged: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close copied-up file: %v", err)
+	}
+
+	upperGot, err := os.ReadFile(filepath.Join(upper, "marker.txt"))
+	if err != nil || string(upperGot) != "hello-UPPERlower" {
+		t.Fatalf("partial write should copy the complete file to upper, got %q err=%v", upperGot, err)
+	}
+	lowerGot, err := os.ReadFile(filepath.Join(lower, "marker.txt"))
+	if err != nil || string(lowerGot) != "hello-from-lower" {
+		t.Fatalf("copy-up must leave lower unchanged, got %q err=%v", lowerGot, err)
+	}
 }
 
 func TestM03P3PivotSwapsRoot(t *testing.T) {
