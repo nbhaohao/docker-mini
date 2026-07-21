@@ -60,5 +60,12 @@ func EnterAndExec(f NamespaceFlags, target []string) error {
 
 // 你来实现（m04 P1）：
 // 1. 若 f.Net 为 true，新 network namespace 里连回环网卡默认都是 DOWN 的，得手动拉起来，
-//    否则连 127.0.0.1 都不通。用 exec.Command("ip", "link", "set", "lo", "up").Run()。
+//    否则连 127.0.0.1 都不通：
+//        lo := exec.Command("ip", "link", "set", "lo", "up")
+//        lo.Stdin, lo.Stdout, lo.Stderr = os.Stdin, os.Stdout, os.Stderr
+//        if err := lo.Run(); err != nil { return err }
 // 2. 放在 exec.LookPath 之前执行（这条命令跑完就结束了，不影响后面的换像）。
+// 3. 那三个流为什么必须显式接上：os/exec 对没设置的流会去打开 /dev/null——而这行代码此刻
+//    已经在 m03 换根之后的 alpine rootfs 里，那套精简 rootfs 根本没有 /dev/null，
+//    默认行为会直接报 open /dev/null: no such file or directory，而且报错完全不提网络。
+//    （m01/m04 的单元测试跑在宿主 rootfs 上，有 /dev/null，只有真容器 e2e 会撞上这个坑。）
