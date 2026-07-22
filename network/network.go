@@ -69,7 +69,10 @@ func natTableName(cfg Config) string {
 // network namespace，再在里面配好 IP 并拉起来（新 namespace 里所有网卡默认都是 DOWN 的）。
 // HostVeth 这一端这里只创建、不配置——它要接进网桥，那是 P3 的事。
 func AttachVeth(pid int, cfg Config) error {
-	panic("TODO: m04 P2 - 创建 veth 对、把容器侧网卡移入 pid 的 netns 并配置")
+	if err := runIP("link", "add", cfg.HostVeth, "type", "veth", "peer", "name", cfg.CtrVeth); err != nil {
+		return err
+	}
+	return runIP("link", "set", cfg.CtrVeth, "netns", strconv.Itoa(pid))
 }
 
 // 你来实现（m04 P2）：
