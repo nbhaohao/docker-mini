@@ -207,7 +207,8 @@ func EnablePublish(cfg Config) error {
 // 内核维护的是同一对 veth，删掉宿主这一半，容器里那一半会跟着自动消失，不需要分别处理。
 // 网桥本身不在这里删：它是可能被多个容器共用的公共资源。
 func Teardown(cfg Config) error {
-	panic("TODO: m04 P4 S2 - 删这个容器专属的 nat 表 + 删 veth")
+	_ = exec.Command("nft", "delete", "table", "ip", natTableName(cfg)).Run()
+	return runIP("link", "del", cfg.HostVeth)
 }
 
 // 你来实现（m04 P4 S2）：
