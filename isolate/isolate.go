@@ -26,6 +26,9 @@ func SysProcAttrFor(f NamespaceFlags) *syscall.SysProcAttr {
 	if f.PID {
 		flags |= syscall.CLONE_NEWPID
 	}
+	if f.Net {
+		flags |= syscall.CLONE_NEWNET
+	}
 	attr := &syscall.SysProcAttr{Cloneflags: flags}
 	if f.NS {
 		attr.Cloneflags |= syscall.CLONE_NEWNS
@@ -48,6 +51,13 @@ func EnterAndExec(f NamespaceFlags, target []string) error {
 	}
 	if f.PID && f.NS {
 		if err := syscall.Mount("proc", "/proc", "proc", 0, ""); err != nil {
+			return err
+		}
+	}
+	if f.Net {
+		lo := exec.Command("ip", "link", "set", "lo", "up")
+		lo.Stdin, lo.Stdout, lo.Stderr = os.Stdin, os.Stdout, os.Stderr
+		if err := lo.Run(); err != nil {
 			return err
 		}
 	}
