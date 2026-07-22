@@ -72,7 +72,13 @@ func AttachVeth(pid int, cfg Config) error {
 	if err := runIP("link", "add", cfg.HostVeth, "type", "veth", "peer", "name", cfg.CtrVeth); err != nil {
 		return err
 	}
-	return runIP("link", "set", cfg.CtrVeth, "netns", strconv.Itoa(pid))
+	if err := runIP("link", "set", cfg.CtrVeth, "netns", strconv.Itoa(pid)); err != nil {
+		return err
+	}
+	if err := runInNetns(pid, "ip", "addr", "add", cfg.ContainerCIDR, "dev", cfg.CtrVeth); err != nil {
+		return err
+	}
+	return runInNetns(pid, "ip", "link", "set", cfg.CtrVeth, "up")
 }
 
 // 你来实现（m04 P2）：
