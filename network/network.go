@@ -95,7 +95,21 @@ func AttachVeth(pid int, cfg Config) error {
 // ConnectBridge 是 m04 P3 的核心：建好网桥、把 P2 留在宿主侧的 HostVeth 接成网桥的一个端口，
 // 再让容器侧把默认路由指向网桥地址——做完这一步，容器与宿主才算真正"打通"（能互相 ping 通）。
 func ConnectBridge(pid int, cfg Config) error {
-	panic("TODO: m04 P3 - 建网桥、把宿主侧网卡接进网桥、给容器配默认路由")
+	if !bridgeExists(cfg.BridgeName) {
+		if err := runIP("link", "add", cfg.BridgeName, "type", "bridge"); err != nil {
+			return err
+		}
+		if err := runIP("addr", "add", cfg.BridgeCIDR, "dev", cfg.BridgeName); err != nil {
+			return err
+		}
+		if err := runIP("link", "set", cfg.BridgeName, "up"); err != nil {
+			return err
+		}
+	}
+	if err := runIP("link", "set", cfg.HostVeth, "master", cfg.BridgeName); err != nil {
+		return err
+	}
+	return runIP("link", "set", cfg.HostVeth, "up")
 }
 
 // 你来实现（m04 P3）：
