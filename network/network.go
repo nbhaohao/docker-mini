@@ -109,7 +109,10 @@ func ConnectBridge(pid int, cfg Config) error {
 	if err := runIP("link", "set", cfg.HostVeth, "master", cfg.BridgeName); err != nil {
 		return err
 	}
-	return runIP("link", "set", cfg.HostVeth, "up")
+	if err := runIP("link", "set", cfg.HostVeth, "up"); err != nil {
+		return err
+	}
+	return runInNetns(pid, "ip", "route", "add", "default", "via", gatewayIP(cfg.BridgeCIDR))
 }
 
 // 你来实现（m04 P3）：
