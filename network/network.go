@@ -149,7 +149,36 @@ func subnetOf(cidr string) string {
 // 回包会直接往 127.0.0.1 送而不是经过网桥，宿主自己都不知道该怎么把这个回包收回来——
 // 必须连源地址也换成网桥地址，回包才有路可走（这条踩坑记录见 P4 教案）。
 func EnablePublish(cfg Config) error {
-	panic("TODO: m04 P4 S1 - 开转发 + 建 nat 表四条规则")
+	if err := exec.Command("sysctl", "-w", "net.ipv4.ip_forward=1").Run(); err != nil {
+		return err
+	}
+	if err := exec.Command("sysctl", "-w", "net.ipv4.conf."+cfg.BridgeName+".route_localnet=1").Run(); err != nil {
+		return err
+	}
+
+	table := natTableName(cfg)
+	containerIP := gatewayIP(cfg.ContainerCIDR)
+	subnet := subnetOf(cfg.BridgeCIDR)
+	hostPort := strconv.Itoa(cfg.HostPort)
+	containerPort := strconv.Itoa(cfg.ContainerPort)
+	runNFT := func(args ...string) error {
+		return exec.Command("nft", args...).Run()
+	}
+	for _, args := range [][]string{
+		{"add", "table", "ip", table},
+		{"add", "chain", "ip", table, "prerouting", "{ type nat hook prerouting priority -100 ; }"},
+		{"add", "chain", "ip", table, "output", "{ type nat hook output priority -100 ; }"},
+		{"add", "chain", "ip", table, "postrouting", "{ type nat hook postrouting priority 100 ; }"},
+		{"add", "rule", "ip", table, "prerouting", "tcp", "dport", hostPort, "dnat", "to", containerIP + ":" + containerPort},
+		{"add", "rule", "ip", table, "output", "tcp", "dport", hostPort, "dnat", "to", containerIP + ":" + containerPort},
+		{"add", "rule", "ip", table, "postrouting", "ip", "saddr", subnet, "masquerade"},
+		{"add", "rule", "ip", table, "postrouting", "ip", "daddr", subnet, "masquerade"},
+	} {
+		if err := runNFT(args...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // 你来实现（m04 P4 S1）：
